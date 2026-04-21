@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos Hello Sunshine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .dark-mode {
+            background-color: #1e1b1c !important;
+            color: #f1f5f9 !important;
+        }
+
+        .dark-mode .bg-white { background-color: #2d2a2b !important; }
+        .dark-mode .text-slate-800, .dark-mode .text-slate-700 { color: #f1f5f9 !important; }
+        .dark-mode .border-pink-100 { border-color: #4a3f41 !important; }
+        .dark-mode .bg-pink-50 { background-color: #3d3537 !important; }
+        .dark-mode #resumen-carrito, .dark-mode #datos-cliente-seccion { border-color: #4a3f41 !important; }
+        .dark-mode input, .dark-mode textarea { background-color: #3d3537; color: white; border-color: #4a3f41; }
+        .dark-mode .fixed.bottom-0 { background-color: rgba(30, 27, 28, 0.9); }
+
+        .glitter-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 0;
+            background: radial-gradient(circle, rgba(255,182,193,0.4) 1px, transparent 1px);
+            background-size: 25px 25px;
+            animation: sparkle 3s infinite ease-in-out;
+        }
+
+        .fly-img {
+            position: fixed; z-index: 9999; pointer-events: none;
+            transition: all 0.7s cubic-bezier(0.65, -0.3, 0.25, 1.3);
+            border-radius: 12px;
+        }
+        
+        .campo-error {
+            border-color: #f87171 !important;
+            background-color: #fef2f2 !important;
+        }
+
+        #product-modal {
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+        }
+        .modal-content {
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+        #product-modal.active .modal-content {
+            transform: translateY(0);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #fce7f3;
+            transition: all 0.3s ease;
+        }
+        .dot.active {
+            background-color: #ec4899;
+            transform: scale(1.3);
+        }
+    </style>
+</head>
+
+<body class="bg-[#fff5f7] text-slate-800 p-4 pb-32 font-sans transition-colors duration-300" style="font-family: 'Baloo 2', cursive;">
+    
+    <div class="glitter-bg"></div>
+
+    <button onclick="toggleDarkMode()" class="fixed top-4 right-4 z-[60] bg-white dark:bg-slate-800 p-3 rounded-full shadow-lg border-2 border-pink-200 transition-all active:scale-90">
+        <span id="dark-icon">🌙</span>
+    </button>
+
+    <div class="max-w-2xl mx-auto relative z-10">
+        <div class="bg-gradient-to-r from-pink-200 to-pink-100 p-6 rounded-3xl shadow-md mb-6 text-center border-2 border-pink-300">
+            <h1 class="text-3xl font-bold text-pink-600 italic tracking-wide">Hello Sunshine Mty</h1>
+            <p class="text-sm text-pink-500 font-medium">Catálogo mágico ✨</p>
+        </div>
+
+        <div class="mb-4">
+            <input 
+                type="text" 
+                id="buscador"
+                placeholder="Buscar producto..."
+                oninput="filtrarProductos(this.value)"
+                class="w-full p-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 text-sm w-full"
+            >
+        </div>
+
+        <div id="contenedor-productos" class="grid gap-4 mb-8">
+            <p class="text-center text-gray-400 animate-pulse py-10">Cargando productos...</p>
+        </div>
+
+        <div id="datos-cliente-seccion" class="bg-white p-6 rounded-3xl shadow-xl border border-pink-100 mb-6 transition-colors">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2 text-slate-700">Tus Datos</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] text-pink-400 font-bold uppercase ml-1">Nombre *</label>
+                    <input type="text" id="cli-nombre" placeholder="Ej. María" class="w-full p-3 rounded-xl border border-gray-100 text-sm focus:ring-2 focus:ring-pink-300 outline-none">
+                </div>
+                <div>
+                    <label class="text-[10px] text-pink-400 font-bold uppercase ml-1">Apellido *</label>
+                    <input type="text" id="cli-apellido" placeholder="Ej. García" class="w-full p-3 rounded-xl border border-gray-100 text-sm focus:ring-2 focus:ring-pink-300 outline-none">
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="text-[10px] text-pink-400 font-bold uppercase ml-1">Número de Teléfono *</label>
+                <input type="tel" id="cli-telefono" placeholder="Ej. 1234567890" class="w-full p-3 rounded-xl border border-gray-100 text-sm focus:ring-2 focus:ring-pink-300 outline-none">
+            </div>
+            
+            <div class="mt-4">
+                <label class="text-[10px] text-gray-400 font-bold uppercase ml-1">Notas del pedido (Opcional)</label>
+                <textarea 
+                    id="cli-notas" 
+                    maxlength="300" 
+                    oninput="actualizarContador(this)"
+                    placeholder="¿Algo en específico que debamos saber?" 
+                    class="w-full mt-1 p-3 rounded-xl border border-gray-100 text-sm focus:ring-2 focus:ring-pink-300 outline-none h-24 resize-none"
+                ></textarea>
+                <p class="text-[10px] text-right text-gray-400 mt-1"><span id="char-count">0</span>/300 caracteres</p>
+            </div>
+        </div>
+
+        <div id="resumen-carrito" class="bg-white p-6 rounded-3xl shadow-xl border border-pink-100 transition-colors">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2 text-slate-700">Tu Pedido</h2>
+            <div id="lista-carrito" class="space-y-4 mb-6 text-sm text-gray-600">
+                <p class="italic text-gray-400 text-center py-4">Selecciona productos arriba</p>
+            </div>
+
+            <div class="pt-4 border-t border-dashed border-gray-200 space-y-1">
+                <div class="flex justify-between items-center pt-2">
+                    <span class="font-bold text-xl text-slate-700">Total a Pagar:</span>
+                    <span id="total-final" class="font-black text-2xl text-pink-600">$0.00</span>
+                </div>
+                <div id="ahorro-contenedor" class="flex justify-between items-center text-green-600 hidden">
+                    <span class="text-sm font-medium">Descuento aplicado:</span>
+                    <span id="ahorro-total" class="font-bold">-$0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="product-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/60 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white dark:bg-slate-800 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2.5rem] shadow-2xl relative border-4 border-pink-200">
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 z-[110] bg-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg font-bold">✕</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md shadow-lg z-50 text-center transition-colors">
+        <button onclick="enviarWhatsApp()" class="max-w-2xl mx-auto w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl flex justify-center items-center gap-2 transition-all active:scale-95 shadow-lg">
+            Confirmar Pedido por WhatsApp
+        </button>
+    </div>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJTF1ai4_20ZPlrMUMPO48WI9qvRzUGx8RaHwo_Ml9g-lmr3hUJAhG91paFVCQTX5_60xI_JtDxWAX/pub?output=csv'; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0i6r5NHIhh2XGgFt0Ju-R21hNaYNYko8cfgwitym8IbaxVYCc5Hd23fm6EaByoBWZ/exec";
+const PALABRAS_PROHIBIDAS = ["groseria1", "groseria2", "xxx", "porno", "insulto"]; 
+
+let carrito = [];
+let productosData = [];
+
+function toggleDarkMode() {
+    const body = document.body;
+    const icon = document.getElementById('dark-icon');
+    body.classList.toggle('dark-mode');
+    icon.innerText = body.classList.contains('dark-mode') ? '☀️' : '🌙';
+    localStorage.setItem('tema', body.classList.contains('dark-mode') ? 'oscuro' : 'claro');
+}
+
+function aplicarPreferenciaTema() {
+    if (localStorage.getItem('tema') === 'oscuro') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('dark-icon').innerText = '☀️';
+    }
+}
+
+function actualizarContador(el) {
+    document.getElementById('char-count').innerText = el.value.length;
+}
+
+function cargarInventario() {
+    Papa.parse(CSV_URL, {
+        download: true,
+        header: true,
+        complete: function(results) {
+            productosData = results.data.filter(p => p.nombre);
+            renderizarProductos(productosData);
+        }
+    });
+}
+
+function renderizarProductos(lista = productosData) {
+    const container = document.getElementById('contenedor-productos');
+    container.innerHTML = "";
+    if (lista.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-400 py-10">Sin resultados</p>`;
+        return;
+    }
+    lista.forEach((prod) => {
+        let pN = parseFloat(prod.precioNormal.replace(/[^0-9.]/g, '')) || 0;
+        let pM = parseFloat(prod.precioMayoreo.replace(/[^0-9.]/g, '')) || 0;
+        if (pM > pN) [pN, pM] = [pM, pN];
+
+        const imgPrincipal = (prod.imagenUrl || "").split(/,\s*http/)[0].trim();
+
+        container.innerHTML += `
+        <div onclick="abrirModal('${prod.nombre}')" class="bg-white p-4 rounded-3xl shadow-md flex items-center gap-4 border-2 border-pink-100 hover:scale-[1.02] transition-all duration-300 cursor-pointer overflow-hidden relative">
+            <img src="${imgPrincipal || 'https://via.placeholder.com/80'}" class="w-20 h-20 rounded-xl object-cover border">
+            <div class="flex-1">
+                <h3 class="font-bold text-slate-700">${prod.nombre}</h3>
+                <p class="text-[10px] text-gray-400 uppercase">Medida: ${prod.medida || 'N/A'}</p>
+                <p class="text-sm font-semibold text-pink-600">
+                    $${pN.toFixed(2)} 
+                    <span class="text-[10px] text-gray-400">(Mayoreo $${pM.toFixed(2)} +50)</span>
+                </p>
+                <button onclick="event.stopPropagation(); agregarAlCarrito('${prod.nombre}'); animarVuelo(this.closest('div').parentElement.querySelector('img'))"
+                class="mt-2 bg-gradient-to-r from-pink-400 to-pink-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-md hover:scale-105 active:scale-95 transition-all duration-200">
+                Añadir al Carrito</button>
+            </div>
+        </div>`;
+    });
+}
+
+function abrirModal(nombre) {
+    const prod = productosData.find(p => p.nombre === nombre);
+    const modal = document.getElementById('product-modal');
+    const body = document.getElementById('modal-body');
+    
+    // Procesar imágenes
+    const rawUrls = prod.imagenUrl || "";
+    const imagenes = rawUrls.split(/,\s*http/).map((url, i) => {
+        url = url.trim();
+        return (i > 0 && !url.startsWith('http')) ? 'http' + url : url;
+    });
+
+    let carruselHtml = imagenes.map(img => `<img src="${img}" class="w-full h-64 object-cover shrink-0 snap-center">`).join('');
+    let dotsHtml = imagenes.map((_, i) => `<div class="dot ${i === 0 ? 'active' : ''}" data-index="${i}"></div>`).join('');
+
+    body.innerHTML = `
+        <div class="flex flex-col relative">
+            <div class="relative group">
+                <div id="carrusel" class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth" onscroll="actualizarDots()">
+                    ${carruselHtml}
+                </div>
+                ${imagenes.length > 1 ? `
+                    <button onclick="moverCarrusel(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white w-9 h-9 rounded-full flex items-center justify-center font-bold z-10">❮</button>
+                    <button onclick="moverCarrusel(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white w-9 h-9 rounded-full flex items-center justify-center font-bold z-10">❯</button>
+                    <div id="dots-container" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                        ${dotsHtml}
+                    </div>
+                ` : ''}
+            </div>
+
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-2">
+                    <h2 class="text-2xl font-bold text-slate-800 dark:text-white leading-tight">${prod.nombre}</h2>
+                    <span class="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-xs font-bold">${prod.medida || 'N/A'}</span>
+                </div>
+                
+                <div class="flex gap-4 mb-4">
+                    <p class="text-lg font-black text-slate-800 dark:text-white">$${prod.precioNormal}</p>
+                    <p class="text-lg font-black text-pink-500 border-l pl-4">$${prod.precioMayoreo} <span class="text-[10px] text-pink-300 font-normal tracking-tighter">(MAYOREO)</span></p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 dark:text-pink-300 uppercase mb-1">Descripción</h4>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">${prod.descripcion || 'Sin descripción.'}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 bg-pink-50 dark:bg-slate-700/50 p-3 rounded-2xl">
+                        <div>
+                            <h4 class="text-[10px] font-bold text-pink-400 dark:text-pink-300 uppercase">Características</h4>
+                            <p class="text-xs text-slate-700 dark:text-gray-200">${prod.caracteristicas || 'Estándar'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-pink-100 dark:border-slate-700">
+    <h4 class="text-xs font-bold text-slate-400 dark:text-pink-300 uppercase mb-3 text-center">Opiniones de clientes</h4>
+    
+    <div id="lista-comentarios-real" class="space-y-3 mb-6 max-h-40 overflow-y-auto no-scrollbar">
+        <p class="text-[10px] text-center text-gray-400 animate-pulse">Cargando comentarios...</p>
+    </div>
+
+    <div class="space-y-3">
+        <textarea id="nuevo-comentario" 
+            class="w-full p-3 text-sm rounded-2xl border border-gray-100 bg-gray-50 dark:bg-slate-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-pink-300 resize-none h-20"
+            placeholder="Escribe tu experiencia..."></textarea>
+        
+        <button onclick="enviarComentario('${prod.nombre}')" 
+            class="w-full bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-white text-xs font-bold py-3 rounded-xl hover:bg-pink-100 transition-colors">
+            Publicar Comentario
+        </button>
+        <p id="msg-error-comentario" class="text-[10px] text-red-500 text-center hidden"></p>
+    </div>
+</div>
+
+                <button onclick="agregarAlCarrito('${prod.nombre}'); cerrarModal();" 
+                    class="w-full mt-6 bg-pink-500 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all">
+                    Añadir al Carrito
+                </button>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.add('active');
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
+    }, 10);
+    cargarComentarios(nombre);
+}
+
+async function enviarComentario(nombreProducto) {
+    const textarea = document.getElementById('nuevo-comentario');
+    const texto = textarea.value.trim();
+    const errorMsg = document.getElementById('msg-error-comentario');
+    
+    const contieneProhibidas = PALABRAS_PROHIBIDAS.some(palabra => texto.toLowerCase().includes(palabra));
+    
+    if (contieneProhibidas) {
+        errorMsg.innerText = "⚠️ El comentario contiene lenguaje no permitido.";
+        errorMsg.classList.remove('hidden');
+        return;
+    }
+
+    if (texto === "") return;
+
+    errorMsg.classList.add('hidden');
+    const btn = event.target;
+    btn.innerText = "Enviando...";
+    btn.disabled = true;
+
+    // Cambiamos a URLSearchParams para que Google Apps Script lo lea más fácil
+    const formData = new URLSearchParams();
+    formData.append('producto', nombreProducto);
+    formData.append('comentario', texto);
+
+    try {
+        // Usamos una técnica de envío que evita los bloqueos de CORS
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+        });
+
+        alert("¡Muchas gracias! Tu comentario ha sido enviado.");
+        textarea.value = "";
+    } catch (error) {
+        console.error("Error:", error);
+        alert("Hubo un problema al enviar el comentario.");
+    } finally {
+        btn.innerText = "Publicar Comentario";
+        btn.disabled = false;
+    }
+}
+
+function actualizarDots() {
+    const carrusel = document.getElementById('carrusel');
+    const dots = document.querySelectorAll('.dot');
+    if (!carrusel || dots.length === 0) return;
+    const scrollLeft = carrusel.scrollLeft;
+    const anchoImagen = carrusel.offsetWidth;
+    const indexActual = Math.round(scrollLeft / anchoImagen);
+    dots.forEach((dot, i) => {
+        if (i === indexActual) dot.classList.add('active');
+        else dot.classList.remove('active');
+    });
+}
+
+function moverCarrusel(direccion) {
+    const carrusel = document.getElementById('carrusel');
+    const anchoImagen = carrusel.offsetWidth;
+    carrusel.scrollBy({ left: anchoImagen * direccion, behavior: 'smooth' });
+}
+
+function cerrarModal() {
+    const modal = document.getElementById('product-modal');
+    modal.classList.remove('active');
+    modal.style.opacity = '0';
+    modal.style.pointerEvents = 'none';
+    setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+function filtrarProductos(texto) {
+    const filtrados = productosData.filter(p => 
+        p.nombre.toLowerCase().includes(texto.toLowerCase()) ||
+        (p.medida && p.medida.toLowerCase().includes(texto.toLowerCase()))
+    );
+    renderizarProductos(filtrados);
+}
+
+function agregarAlCarrito(nombre) {
+    const prod = productosData.find(p => p.nombre === nombre);
+    if (carrito.find(item => item.nombre === prod.nombre)) return alert("Ya está en tu carrito.");
+    
+    carrito.push({ 
+        nombre: prod.nombre,
+        cantidad: 20,
+        pNormal: parseFloat(prod.precioNormal.replace(/[^0-9.]/g, '')) || 0,
+        pMayoreo: parseFloat(prod.precioMayoreo.replace(/[^0-9.]/g, '')) || 0
+    });
+    actualizarVistaCarrito();
+    localStorage.setItem('carrito', JSON.stringify(carrito));
+}
+
+function actualizarVistaCarrito() {
+    const lista = document.getElementById('lista-carrito');
+    const totalDisplay = document.getElementById('total-final');
+    const ahorroCont = document.getElementById('ahorro-contenedor');
+    const ahorroDisplay = document.getElementById('ahorro-total');
+
+    if (carrito.length === 0) {
+        lista.innerHTML = '<p class="italic text-gray-400 text-center py-4">Carrito vacío</p>';
+        totalDisplay.innerText = '$0.00';
+        ahorroCont.classList.add('hidden');
+        return;
+    }
+
+    let total = 0, ahorro = 0, html = "";
+    carrito.forEach((item, i) => {
+        const esMayoreo = item.cantidad >= 50;
+        const precio = esMayoreo ? item.pMayoreo : item.pNormal;
+        const subtotal = item.cantidad * precio;
+        const ahorroItem = esMayoreo ? (item.pNormal - item.pMayoreo) * item.cantidad : 0;
+        total += subtotal; ahorro += ahorroItem;
+
+        html += `
+        <div class="bg-pink-50 p-4 rounded-3xl border-2 border-pink-100">
+            <div class="flex justify-between items-start">
+                <h4 class="font-bold text-slate-700">${item.nombre}</h4>
+                <button onclick="eliminar(${i})" class="text-red-400 text-xs font-bold">Quitar</button>
+            </div>
+            <div class="flex justify-between items-center mt-3">
+                <div class="flex items-center bg-white border rounded-xl overflow-hidden shadow-sm">
+                    <button onclick="cambiarCantidad(${i}, -1)" class="px-3 py-1 font-bold text-pink-500">-</button>
+                    <input type="number" onchange="ajustarManual(${i}, this.value)" value="${item.cantidad}" class="w-12 text-center text-sm font-bold border-none bg-transparent">
+                    <button onclick="cambiarCantidad(${i}, 1)" class="px-3 py-1 font-bold text-pink-500">+</button>
+                </div>
+                <div class="text-right">
+                    <p class="font-black text-pink-600 text-lg">$${subtotal.toFixed(2)}</p>
+                </div>
+            </div>
+        </div>`;
+    });
+    lista.innerHTML = html;
+    totalDisplay.innerText = `$${total.toFixed(2)}`;
+    if (ahorro > 0) {
+        ahorroCont.classList.remove('hidden');
+        ahorroDisplay.innerText = `-$${ahorro.toFixed(2)}`;
+    } else {
+        ahorroCont.classList.add('hidden');
+    }
+}
+
+function cambiarCantidad(index, delta) {
+    let nueva = carrito[index].cantidad + delta;
+    if (nueva < 20) return;
+    carrito[index].cantidad = nueva;
+    actualizarVistaCarrito();
+}
+
+function ajustarManual(index, valor) {
+    let n = parseInt(valor);
+    carrito[index].cantidad = (isNaN(n) || n < 20) ? 20 : n;
+    actualizarVistaCarrito();
+}
+
+function eliminar(index) {
+    carrito.splice(index, 1);
+    actualizarVistaCarrito();
+}
+
+function animarVuelo(imgElement) {
+    const carritoBtn = document.querySelector('button[onclick="enviarWhatsApp()"]');
+    if (!imgElement || !carritoBtn) return;
+    const imgRect = imgElement.getBoundingClientRect();
+    const btnRect = carritoBtn.getBoundingClientRect();
+    const clone = imgElement.cloneNode(true);
+    clone.classList.add('fly-img');
+    clone.style.top = imgRect.top + 'px';
+    clone.style.left = imgRect.left + 'px';
+    clone.style.width = imgRect.width + 'px';
+    document.body.appendChild(clone);
+    setTimeout(() => {
+        clone.style.top = btnRect.top + 'px';
+        clone.style.left = (btnRect.left + btnRect.width/2) + 'px';
+        clone.style.width = '20px';
+        clone.style.opacity = '0.2';
+    }, 50);
+    setTimeout(() => clone.remove(), 800);
+}
+
+function enviarWhatsApp() {
+    const inputNom = document.getElementById('cli-nombre');
+    const inputApe = document.getElementById('cli-apellido');
+    const inputTel = document.getElementById('cli-telefono');
+    
+    const nom = inputNom.value.trim();
+    const ape = inputApe.value.trim();
+    const tel = inputTel.value.trim();
+    const notas = document.getElementById('cli-notas').value.trim();
+
+    inputNom.classList.remove('campo-error');
+    inputApe.classList.remove('campo-error');
+    inputTel.classList.remove('campo-error');
+
+    let faltanCampos = false;
+    if (!nom) { inputNom.classList.add('campo-error'); faltanCampos = true; }
+    if (!ape) { inputApe.classList.add('campo-error'); faltanCampos = true; }
+    if (!tel) { inputTel.classList.add('campo-error'); faltanCampos = true; }
+
+    if (faltanCampos) {
+        alert("Por favor rellena los campos marcados con *");
+        return;
+    }
+
+    if (carrito.length === 0) {
+        alert("El carrito está vacío. Añade productos antes de enviar.");
+        return;
+    }
+
+    const ahora = new Date();
+    const fechaStr = ahora.toLocaleDateString();
+    const pedidoNum = Math.floor(Math.random() * 9000) + 1000;
+
+    let total = 0, detalle = "";
+    carrito.forEach(item => {
+        const esM = item.cantidad >= 50;
+        const precio = esM ? item.pMayoreo : item.pNormal;
+        const sub = item.cantidad * precio;
+        total += sub;
+        detalle += `✅ *${item.cantidad}* ${item.nombre} - *$${sub.toFixed(2)}*\n`;
+    });
+
+    const mensaje = 
+`*NUEVO PEDIDO - HELLO SUNSHINE* ☀️
+-----------------------------------------
+*PEDIDO #:${pedidoNum}*
+*FECHA:* ${fechaStr}
+-----------------------------------------
+*CLIENTE:* ${nom} ${ape}
+*TELÉFONO:* ${tel}
+-----------------------------------------
+${detalle}
+-----------------------------------------
+*TOTAL: $${total.toFixed(2)}*
+${notas ? `\n*NOTAS:* ${notas}` : ''}
+
+Hola, quiero confirmar mi pedido.`;
+
+    window.open(`https://wa.me/5218137093031?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+window.onload = () => {
+    aplicarPreferenciaTema();
+    cargarInventario();
+    const saved = localStorage.getItem('carrito');
+    if (saved) { carrito = JSON.parse(saved); actualizarVistaCarrito(); }
+};
+
+async function cargarComentarios(nombreProducto) {
+    const contenedor = document.getElementById('lista-comentarios-real');
+    
+    // REEMPLAZA: Pon aquí tu URL de publicación y el número de gid que copiaste
+    const GID_COMENTARIOS = "1613222025"; 
+    const URL_COMENTARIOS_CSV = `https://docs.google.com/spreadsheets/d/e/2PACX-1vTJTF1ai4_20ZPlrMUMPO48WI9qvRzUGx8RaHwo_Ml9g-lmr3hUJAhG91paFVCQTX5_60xI_JtDxWAX/pub?gid=${GID_COMENTARIOS}&output=csv`;
+
+    Papa.parse(URL_COMENTARIOS_CSV, {
+        download: true,
+        header: true,
+        complete: function(results) {
+            // Filtramos los comentarios que pertenecen a este producto específico
+            const filtrados = results.data.filter(c => 
+                c.Producto && c.Producto.trim() === nombreProducto.trim()
+            );
+            
+            if (filtrados.length === 0) {
+                contenedor.innerHTML = `<p class="text-[10px] text-center text-gray-400 italic">Aún no hay opiniones. ¡Sé el primero en comentar! ✨</p>`;
+                return;
+            }
+
+            // Acomodamos el texto en la sección de comentarios
+            contenedor.innerHTML = filtrados.reverse().map(c => `
+                <div class="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-xl border-l-4 border-pink-400 mb-2">
+                    <p class="text-xs text-slate-600 dark:text-gray-200 font-medium">"${c.Comentario}"</p>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-[9px] text-pink-500 font-bold uppercase">Cliente Satisfecho</span>
+                        <span class="text-[8px] text-gray-400">${c.Fecha.split(' ')[0]}</span>
+                    </div>
+                </div>
+            `).join('');
+        },
+        error: function() {
+            contenedor.innerHTML = `<p class="text-[10px] text-center text-red-400">Error al cargar opiniones.</p>`;
+        }
+    });
+}
+
+</script>
+</body>
+</html>
